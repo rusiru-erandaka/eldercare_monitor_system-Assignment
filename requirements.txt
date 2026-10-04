@@ -1,0 +1,6 @@
+openvino>=2024.0
+opencv-python>=4.8
+numpy>=1.24
+openvino-model-api   # only needed if --det-model is a model_api folder / HF id (not a .xml)
+pytest               # tests only
+google-genai>=1.0     # optional: only needed for --vlm Gemini agentic review

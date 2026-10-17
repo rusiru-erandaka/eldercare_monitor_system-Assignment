@@ -9,6 +9,7 @@ import os
 import platform
 import subprocess
 import sys
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Sequence
@@ -17,7 +18,7 @@ from .models import PROJECT_ROOT, sha256_file
 
 ARTIFACT_NAMES = frozenset({
     "config.json", "events.json", "evaluation.json", "overlay.mp4",
-    "run.json", "summary.json", "ticks.jsonl", "ticks.meta.json",
+    "run.json", "run.log", "summary.json", "ticks.jsonl", "ticks.meta.json",
     "timeline.json", "timeline.txt", "vlm_reviews.json",
 })
 
@@ -215,6 +216,7 @@ def manifest_template(argv: Sequence[str], source: dict[str, Any],
                       settings: dict[str, Any], requested_device: str) -> dict[str, Any]:
     return {
         "schema_version": 1,
+        "run_id": uuid.uuid4().hex,
         "started_at_utc": utc_now(),
         "status": "running",
         "git": _git_state(),

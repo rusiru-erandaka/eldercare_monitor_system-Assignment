@@ -5,6 +5,7 @@ normalisation. Decoding supports non-maximum suppression and multiple people.
 """
 from __future__ import annotations
 
+import logging
 from typing import Optional, Tuple
 
 import cv2
@@ -89,11 +90,21 @@ class YoloOpenVINO:
     try:
       self.compiled = self.core.compile_model(model, device_name)
     except Exception as exc:  # e.g. no Intel GPU on the reviewer's machine
-      print(f"[{tag}] compile on {device_name} failed ({exc}); falling back to CPU")
+      logging.getLogger(__name__).warning(
+          "Model compile failed; falling back to CPU",
+          extra={"event": "device_fallback", "model": tag,
+                 "requested_device": device_name,
+                 "execution_devices": ["CPU"], "error_type": type(exc).__name__},
+      )
       self.device_name = "CPU"
       self.compiled = self.core.compile_model(model, "CPU")
     self.request = self.compiled.create_infer_request()
-    print(f"[{tag}] ready on {self.device_name} (input {self.size}x{self.size})")
+    logging.getLogger(__name__).info(
+        "Model ready",
+        extra={"event": "model_ready", "model": tag,
+               "requested_device": device_name,
+               "execution_devices": self.execution_devices},
+    )
 
   @property
   def execution_devices(self) -> list[str]:

@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import os
 import shutil
 import sys
@@ -26,6 +27,7 @@ import cv2
 from pydantic import ValidationError
 
 from .config import Config
+from .logging_utils import configure_logging, validate_log_file
 from .models import model_directory, model_xml, verify_model
 from .pipeline import (PerceptionPipeline, draw_overlay, iter_video, load_ticks,
                        save_ticks, validate_ticks_video)
@@ -34,6 +36,8 @@ from .provenance import (artifact_hashes, config_hash, input_identity,
                          utc_now, write_manifest)
 from .report import analyze, timeline_lines, write_outputs
 from .schema import BoundingBox
+
+logger = logging.getLogger("eldercare.run")  # works for python -m and console entry point
 
 
 def parse_bed_roi(value: str) -> BoundingBox:
@@ -61,6 +65,9 @@ def parse_args(argv: Optional[Sequence[str]] = None):
       default=str(model_xml("pose")))
   parser.add_argument("--device", default="GPU")
   parser.add_argument("--out", default="results")
+  parser.add_argument("--log-level", choices=("DEBUG", "INFO", "WARNING", "ERROR"),
+                      default="INFO")
+  parser.add_argument("--log-file", help="optional JSON-lines log file")
   parser.add_argument("--config", help="YAML profile; CLI values override it")
   parser.add_argument("--overwrite", action="store_true",
                       help="archive approved existing output artifacts before running")
@@ -120,7 +127,10 @@ def build_pipeline(args, cfg: Config) -> PerceptionPipeline:
     pinned = model_directory(name) if name == "detector" else model_xml(name)
     if os.path.abspath(selected) == str(pinned.resolve()):
       for path, digest in verify_model(name).items():
-        print(f"[{name}] verified model {path} sha256={digest}")
+        logger.info("Pinned model file verified", extra={
+            "event": "model_verified", "model": name,
+            "path": path, "sha256": digest,
+        })
   normalize = not args.no_normalize
   detector = ObjectDetector(args.det_model, cfg, args.device, normalize=normalize)
   pose = PoseEstimator(
@@ -188,7 +198,10 @@ def run_perception(args, cfg: Config):
 
   save_ticks(os.path.join(args.out, "ticks.jsonl"), records, args.video)
   elapsed = time.perf_counter() - started
-  print(f"[run] {len(records)} ticks in {elapsed:.1f}s wall time")
+  logger.info("Video perception finished", extra={
+      "event": "perception_complete", "tick_count": len(records),
+      "elapsed_sec": round(elapsed, 3),
+  })
   return records, model_runtime
 
 
@@ -291,6 +304,7 @@ def main(argv: Optional[Sequence[str]] = None):
   source = input_identity(args.video, args.from_ticks)
   settings = cfg.to_dict()
   try:
+    validate_log_file(args.log_file, original_out)
     output, archived = prepare_output(
         args.out, source["source_sha256"], config_hash(settings), args.overwrite)
   except ValueError as exc:
@@ -305,18 +319,42 @@ def main(argv: Optional[Sequence[str]] = None):
         shutil.copy2(old_file, output / filename)
     args.from_ticks = str(output / original_ticks.name)
   args.out = str(output)
+  configure_logging(args.log_level, args.log_file)
   command = ["eldercare.run", *(argv if argv is not None else sys.argv[1:])]
   manifest = manifest_template(command, source, settings, args.device)
   write_manifest(output, manifest)
+  logger.info("Run started", extra={
+      "event": "run_start", "run_id": manifest["run_id"],
+      "requested_device": args.device,
+  })
 
   try:
     records, model_runtime = load_or_create_records(args, cfg)
     if model_runtime is not None:
       for name, runtime in model_runtime.items():
         manifest["models"][name].update(runtime)
+        logger.info("Model execution device recorded", extra={
+            "event": "model_execution", "run_id": manifest["run_id"],
+            "model": name, "requested_device": args.device,
+            "execution_devices": runtime["execution_devices"],
+        })
+        for path, digest in runtime["files"].items():
+          logger.info("Loaded model file hashed", extra={
+              "event": "model_loaded", "run_id": manifest["run_id"],
+              "model": name, "path": path, "sha256": digest,
+          })
         if args.device.upper() == "GPU" and "GPU" not in runtime["execution_devices"]:
-          manifest["warnings"].append(
-              f"{name} did not execute on GPU; actual devices: {runtime['execution_devices']}")
+          warning = f"{name} did not execute on GPU; actual devices: {runtime['execution_devices']}"
+          manifest["warnings"].append(warning)
+          logger.warning(warning, extra={
+              "event": "device_fallback", "run_id": manifest["run_id"],
+              "model": name, "requested_device": args.device,
+              "execution_devices": runtime["execution_devices"],
+          })
+    else:
+      logger.info("Using cached ticks; no inference device executed", extra={
+          "event": "inference_skipped", "run_id": manifest["run_id"],
+      })
     segments, events, _runs, alerts, overall, report = analyze(records, cfg)
     report["analysis"]["input_type"] = "ticks" if args.from_ticks else "video"
     report["analysis"]["input_path"] = os.path.abspath(
@@ -334,6 +372,10 @@ def main(argv: Optional[Sequence[str]] = None):
       json.dump(settings, f, indent=2)
     manifest["finished_at_utc"] = utc_now()
     manifest["status"] = "complete"
+    logger.info("Run completed", extra={
+        "event": "run_end", "run_id": manifest["run_id"],
+        "status": "complete", "tick_count": len(records),
+    })
     manifest["artifacts"] = artifact_hashes(output)
     write_manifest(output, manifest)
     print_results(segments, report, overall, vlm_result)
@@ -341,6 +383,10 @@ def main(argv: Optional[Sequence[str]] = None):
     manifest["finished_at_utc"] = utc_now()
     manifest["status"] = "failed"
     manifest["error_type"] = type(exc).__name__
+    logger.error("Run failed", extra={
+        "event": "run_end", "run_id": manifest["run_id"],
+        "status": "failed", "error_type": type(exc).__name__,
+    })
     manifest["artifacts"] = artifact_hashes(output)
     write_manifest(output, manifest)
     raise

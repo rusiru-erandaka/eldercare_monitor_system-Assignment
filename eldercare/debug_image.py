@@ -5,12 +5,14 @@ The command prints detections, fused observations and activity classifications,
 then writes an annotated image.
 """
 import argparse
+import logging
 
 import cv2
 
 from .classifier import classify_tick
 from .config import Config
 from .models import model_directory, model_xml, verify_model
+from .logging_utils import configure_logging
 from .features import compute_features
 from .perception.detector import ObjectDetector
 from .perception.fusion import fuse
@@ -27,13 +29,20 @@ def main():
   p.add_argument("--bed-roi")
   p.add_argument("--no-normalize", action="store_true")
   p.add_argument("--out", default="debug_out.png")
+  p.add_argument("--log-level", choices=("DEBUG", "INFO", "WARNING", "ERROR"),
+                 default="INFO")
   a = p.parse_args()
+
+  configure_logging(a.log_level)
 
   for name, selected in (("detector", a.det_model), ("pose", a.pose_model)):
     pinned = model_directory(name) if name == "detector" else model_xml(name)
     if selected == str(pinned):
       for path, digest in verify_model(name).items():
-        print(f"[{name}] verified model {path} sha256={digest}")
+        logging.getLogger("eldercare.debug_image").info("Pinned model file verified", extra={
+            "event": "model_verified", "model": name,
+            "path": path, "sha256": digest,
+        })
 
   cfg = Config()
   frame = cv2.imread(a.image)

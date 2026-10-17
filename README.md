@@ -111,6 +111,12 @@ Thresholds retain their original defaults in `eldercare/config.py`. Use
 fields; `--analysis-fps` and `--vlm-max-reviews` take precedence over the file.
 Unknown keys and out-of-range values are rejected before processing.
 
+Diagnostics are JSON lines on stderr. Use `--log-level DEBUG|INFO|WARNING|ERROR`
+to control verbosity and `--log-file /path/to/run.log` to retain them. A log
+inside the result folder must be named `run.log`, so provenance checks can
+recognize and hash it. The human timeline/summary/events remain on stdout;
+neither API keys nor image bytes are logged.
+
 ## Implementation notes
 
 * **Why two models.** YOLO11 is robust for *where* (person/bed boxes); pose gives *how*

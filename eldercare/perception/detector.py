@@ -5,6 +5,7 @@ OpenVINO IR files are decoded locally. Model API directories and model IDs use
 """
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import List
 
@@ -13,6 +14,8 @@ import numpy as np
 from ..config import Config
 from ..schema import BoundingBox, Detections
 from .yolo_ov import YoloOpenVINO, nms, unletterbox_boxes
+
+logger = logging.getLogger(__name__)
 
 
 class ObjectDetector:
@@ -27,7 +30,10 @@ class ObjectDetector:
       self._raw = YoloOpenVINO(model_path, None, device_name, normalize, tag="ObjectDetector")
     else:
       from model_api.models import Model  # lazy: only needed for this backend
-      print(f"[ObjectDetector] model_api backend on {device_name}")
+      logger.info("Using model-api detector backend", extra={
+          "event": "model_backend", "model": "detector",
+          "requested_device": device_name,
+      })
       local_path = Path(model_path)
       if local_path.is_dir():
         xml_files = list(local_path.glob("*.xml"))

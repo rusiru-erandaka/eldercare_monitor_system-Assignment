@@ -63,6 +63,8 @@ class YoloOpenVINO:
 
   def __init__(self, model_xml: str, model_bin: Optional[str] = None,
                device_name: str = "GPU", normalize: bool = True, tag: str = "YOLO"):
+    self.model_xml_path = model_xml
+    self.model_bin_path = model_bin
     self.core = ov.Core()
     model = self.core.read_model(model_xml, model_bin) if model_bin else \
         self.core.read_model(model_xml)
@@ -92,6 +94,11 @@ class YoloOpenVINO:
       self.compiled = self.core.compile_model(model, "CPU")
     self.request = self.compiled.create_infer_request()
     print(f"[{tag}] ready on {self.device_name} (input {self.size}x{self.size})")
+
+  @property
+  def execution_devices(self) -> list[str]:
+    """Report what OpenVINO actually compiled, including CPU fallback."""
+    return list(self.compiled.get_property("EXECUTION_DEVICES"))
 
   def _run(self, frame: np.ndarray):
     h, w = frame.shape[:2]

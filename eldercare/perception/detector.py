@@ -41,6 +41,19 @@ class ObjectDetector:
             model_path, device=device_name,
             configuration={"confidence_threshold": self.low_conf})
 
+  @property
+  def execution_devices(self) -> list[str]:
+    if self._raw is not None:
+      return self._raw.execution_devices
+    adapter = self._model_api.inference_adapter
+    return list(adapter.compiled_model.get_property("EXECUTION_DEVICES"))
+
+  @property
+  def resolved_model_path(self) -> str:
+    if self._raw is not None:
+      return self._raw.model_xml_path
+    return str(self._model_api.inference_adapter.model_path)
+
   # -- public ---------------------------------------------------------------
   def detect(self, frame: np.ndarray) -> Detections:
     if self._raw is not None:

@@ -15,8 +15,11 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shutil
+import sys
 import time
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Optional, Sequence
 
 import cv2
@@ -25,6 +28,9 @@ from .config import Config
 from .models import model_directory, model_xml, verify_model
 from .pipeline import (PerceptionPipeline, draw_overlay, iter_video, load_ticks,
                        save_ticks, validate_ticks_video)
+from .provenance import (artifact_hashes, config_hash, input_identity,
+                         manifest_template, model_file_hashes, prepare_output,
+                         utc_now, write_manifest)
 from .report import analyze, timeline_lines, write_outputs
 from .schema import BoundingBox
 
@@ -54,6 +60,8 @@ def parse_args(argv: Optional[Sequence[str]] = None):
       default=str(model_xml("pose")))
   parser.add_argument("--device", default="GPU")
   parser.add_argument("--out", default="results")
+  parser.add_argument("--overwrite", action="store_true",
+                      help="archive approved existing output artifacts before running")
   parser.add_argument(
       "--analysis-fps", type=float, default=4.0,
       help="pose sampling rate; detector runs at half this rate (default: 4)")
@@ -133,6 +141,16 @@ def open_video_writer(path: str, frame, fps: float):
 def run_perception(args, cfg: Config):
   """Process a video and return timestamped activity records."""
   pipeline = build_pipeline(args, cfg)
+  model_runtime = {
+      "detector": {
+          "execution_devices": pipeline.detector.execution_devices,
+          "files": model_file_hashes(pipeline.detector.resolved_model_path),
+      },
+      "pose": {
+          "execution_devices": pipeline.pose.execution_devices,
+          "files": model_file_hashes(pipeline.pose.model_xml_path),
+      },
+  }
   records = []
   writer = None
   preview = PreviewClock()
@@ -169,7 +187,7 @@ def run_perception(args, cfg: Config):
   save_ticks(os.path.join(args.out, "ticks.jsonl"), records, args.video)
   elapsed = time.perf_counter() - started
   print(f"[run] {len(records)} ticks in {elapsed:.1f}s wall time")
-  return records
+  return records, model_runtime
 
 
 def load_or_create_records(args, cfg: Config):
@@ -179,7 +197,7 @@ def load_or_create_records(args, cfg: Config):
         validate_ticks_video(args.from_ticks, args.video)
       except ValueError as exc:
         raise SystemExit(str(exc)) from exc
-    return load_ticks(args.from_ticks)
+    return load_ticks(args.from_ticks), None
   return run_perception(args, cfg)
 
 
@@ -251,25 +269,66 @@ def main(argv: Optional[Sequence[str]] = None):
   args = parse_args(argv)
   validate_args(args)
   cfg = Config(analysis_fps=args.analysis_fps)
-  os.makedirs(args.out, exist_ok=True)
+  original_ticks = Path(args.from_ticks).resolve() if args.from_ticks else None
+  original_out = Path(args.out).absolute().resolve()
+  if args.from_ticks and args.video:
+    validate_ticks_video(args.from_ticks, args.video)
+  source = input_identity(args.video, args.from_ticks)
+  settings = cfg.to_dict()
+  try:
+    output, archived = prepare_output(
+        args.out, source["source_sha256"], config_hash(settings), args.overwrite)
+  except ValueError as exc:
+    raise SystemExit(str(exc)) from exc
 
-  records = load_or_create_records(args, cfg)
-  segments, events, _runs, alerts, overall, report = analyze(records, cfg)
-  report["analysis"]["input_type"] = "ticks" if args.from_ticks else "video"
-  report["analysis"]["input_path"] = os.path.abspath(
-      args.from_ticks or args.video)
-  if args.video:
-    report["analysis"]["source_video"] = os.path.abspath(args.video)
+  if archived and original_ticks is not None and original_ticks.parent == original_out:
+    # The user may intentionally re-analyse ticks in the same output folder.
+    # Restore exact input bytes after archiving, before reading the cache.
+    for filename in ("ticks.jsonl", "ticks.meta.json"):
+      old_file = archived / filename
+      if old_file.is_file():
+        shutil.copy2(old_file, output / filename)
+    args.from_ticks = str(output / original_ticks.name)
+  args.out = str(output)
+  command = ["eldercare.run", *(argv if argv is not None else sys.argv[1:])]
+  manifest = manifest_template(command, source, settings, args.device)
+  write_manifest(output, manifest)
 
-  vlm_result = None
-  if args.vlm:
-    vlm_result, overall = apply_vlm_review(
-        args, cfg, records, events, alerts, overall, report)
+  try:
+    records, model_runtime = load_or_create_records(args, cfg)
+    if model_runtime is not None:
+      for name, runtime in model_runtime.items():
+        manifest["models"][name].update(runtime)
+        if args.device.upper() == "GPU" and "GPU" not in runtime["execution_devices"]:
+          manifest["warnings"].append(
+              f"{name} did not execute on GPU; actual devices: {runtime['execution_devices']}")
+    segments, events, _runs, alerts, overall, report = analyze(records, cfg)
+    report["analysis"]["input_type"] = "ticks" if args.from_ticks else "video"
+    report["analysis"]["input_path"] = os.path.abspath(
+        args.from_ticks or args.video)
+    if args.video:
+      report["analysis"]["source_video"] = os.path.abspath(args.video)
 
-  write_outputs(args.out, report, segments)
-  with open(os.path.join(args.out, "config.json"), "w", encoding="utf-8") as f:
-    json.dump(cfg.to_dict(), f, indent=2)
-  print_results(segments, report, overall, vlm_result)
+    vlm_result = None
+    if args.vlm:
+      vlm_result, overall = apply_vlm_review(
+          args, cfg, records, events, alerts, overall, report)
+
+    write_outputs(args.out, report, segments)
+    with open(os.path.join(args.out, "config.json"), "w", encoding="utf-8") as f:
+      json.dump(settings, f, indent=2)
+    manifest["finished_at_utc"] = utc_now()
+    manifest["status"] = "complete"
+    manifest["artifacts"] = artifact_hashes(output)
+    write_manifest(output, manifest)
+    print_results(segments, report, overall, vlm_result)
+  except Exception as exc:
+    manifest["finished_at_utc"] = utc_now()
+    manifest["status"] = "failed"
+    manifest["error_type"] = type(exc).__name__
+    manifest["artifacts"] = artifact_hashes(output)
+    write_manifest(output, manifest)
+    raise
 
 
 if __name__ == "__main__":

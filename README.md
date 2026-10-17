@@ -91,8 +91,20 @@ python -m eldercare.run --from-ticks results/ticks.jsonl --video ../room.mp4 \
 pytest -q
 ```
 Outputs in `results/`: `timeline.txt/json`, `summary.json` (durations + bed summary + events +
-alerts), `events.json`, `ticks.jsonl`, `config.json`, `evaluation.json`, and—when `--vlm`
-is enabled—`vlm_reviews.json`.
+alerts), `events.json`, `ticks.jsonl`, `ticks.meta.json`, and `config.json`.
+`evaluation.json` is produced only by `eldercare.evaluate`, and `vlm_reviews.json`
+only when `--vlm` is enabled.
+
+Each successful run also writes `run.json`: source/tick hashes, full config and
+config hash, Git/package/host versions, loaded model hashes, requested and
+actual per-model execution devices, warnings, and output artifact hashes.
+Check a result folder with `python -m eldercare.provenance verify results/`.
+`--out` refuses a folder containing source files, unknown files, or a legacy
+result without `run.json`. If the source video or config differs, choose a new
+folder or pass `--overwrite`. Overwrite first archives only recognized artifacts
+to `<parent>/_archive/<name>-<UTC timestamp>/`, prints its location and byte
+size, and never deletes archives. The repository root, home directory, and
+parents of the repository are always rejected as output targets.
 
 ## Implementation notes
 

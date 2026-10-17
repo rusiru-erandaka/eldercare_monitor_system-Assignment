@@ -1,0 +1,22 @@
+name: phase0-checks
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v7
+      - name: Install Python and locked dependencies
+        run: |
+          uv python install 3.14.4
+          uv sync --locked --group dev
+      - name: Lint
+        run: make lint
+      - name: Typecheck
+        run: make typecheck
+      - name: Unit tests without private model assets
+        run: make test

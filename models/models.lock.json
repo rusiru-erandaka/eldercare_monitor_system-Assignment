@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "models": {
+    "detector": {
+      "name": "YOLO11n FP16 OpenVINO IR",
+      "version": "Hugging Face snapshot 3d5885633eaced3312d65ea6dd28bae15222b19f",
+      "source": "OpenVINO/YOLO11n-fp16-ov (local cached snapshot; no runtime download)",
+      "license_note": "Redistribution license not independently verified; review before publishing weights.",
+      "directory": "detector",
+      "files": {
+        "yolo11n.xml": "4845b46cc9b6ac379a44484258b7ed98f836ed117d91f127c7728ea068250a95",
+        "yolo11n.bin": "f14632518ebb4e312a89c26faa4cd2f95d4264b6f5f22aa6e0d5707b4667863e"
+      }
+    },
+    "pose": {
+      "name": "YOLOv8n-pose OpenVINO IR",
+      "version": "Local conversion; upstream version/commit unverified",
+      "source": "Existing local yolov8n-pose_openvino_model directory; no verified URL supplied",
+      "license_note": "Source and redistribution license not independently verified; review before publishing weights.",
+      "directory": "pose",
+      "files": {
+        "yolov8n-pose.xml": "1455031b0922bba955ef6c75ceb88b21a5d3a3aa13004e75d3fd58945b8e7190",
+        "yolov8n-pose.bin": "dc6218d6d1efea93f56ddc7b5df9a5f8eb75244e2c5204968340fec6ff9994a1"
+      }
+    }
+  }
+}

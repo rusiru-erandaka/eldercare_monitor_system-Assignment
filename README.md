@@ -36,10 +36,45 @@ video ──(4 FPS ticks, video timestamps)──┐
              [Gemini agent: selective before/current/after visual review]
 ```
 
+## Reproducible environment
+
+This project targets Python 3.14.4. Install `uv`, then from a fresh clone run:
+
+```bash
+uv python install 3.14.4
+uv sync --locked --group dev --extra vlm
+make test
+make lint
+make typecheck
+uv pip check --python .venv/bin/python
+```
+
+`uv.lock` is the authoritative dependency lock, including pinned OpenVINO
+2026.4.0 and openvino-model-api 0.4.7. `requirements.txt` is a generated
+core-only export for environments that use pip; regenerate it with
+`uv export --locked --no-dev --no-emit-project --format requirements-txt -o requirements.txt`.
+The optional Gemini client is installed by the `vlm` extra. Test and development
+tools are installed by the `dev` group. Model weights are managed separately.
+See `models/README.md`: the local XML/BIN files are hash-pinned but intentionally
+Git-ignored. Supply local model sources to `python scripts/fetch_models.py` after
+a fresh clone; no unverified download URL is assumed.
+
+`make test` runs the complete suite in one environment; the optional
+`needs_models` integration test reports a skip reason until both pinned model
+assets are copied locally. After copying them, `make test-all` verifies their
+hashes and runs every test. `make setup` performs the Python and dependency
+installation above. CI runs lint, type checking and the model-free suite on
+each push and pull request. The pre-commit hooks need `pre-commit` installed
+separately (`pre-commit run --all-files`); the credential hook is deliberately
+basic and must not be treated as a guarantee that secrets are absent.
+The regression fixtures under `tests/golden/` replay saved CV ticks from the
+starting commit. They are a change detector, not accuracy ground truth; see
+`tests/golden/README.md` for the known-bad outcomes they intentionally lock.
+
 ## Run
 
 ```bash
-pip install -r requirements.txt
+# Activate the environment created above, or prefix commands with `uv run --locked`.
 
 # Gemini is optional. For VLM review, create the local credentials file:
 cp .env.example .env
@@ -47,13 +82,11 @@ cp .env.example .env
 
 # 1) sanity-check the two models on ONE frame first (writes debug_out.png)
 python -m eldercare.debug_image --image ../frame.png \
-    --det-model OpenVINO/YOLO11n-fp16-ov \
-    --pose-model ../yolov8n-pose_openvino_model/yolov8n-pose.xml --device GPU
+    --device GPU
 
 # 2) full video (use --device CPU if no Intel GPU)
 python -m eldercare.run --video ../room.mp4 --out results/ \
-    --det-model OpenVINO/YOLO11n-fp16-ov \
-    --pose-model ../yolov8n-pose_openvino_model/yolov8n-pose.xml \
+    --device GPU \
     --save-video            # optional annotated overlay.mp4
 #    --bed-roi 40,300,900,700   manual bed box if the detector misses it
 
@@ -72,8 +105,31 @@ python -m eldercare.run --from-ticks results/ticks.jsonl --video ../room.mp4 \
 pytest -q
 ```
 Outputs in `results/`: `timeline.txt/json`, `summary.json` (durations + bed summary + events +
-alerts), `events.json`, `ticks.jsonl`, `config.json`, `evaluation.json`, and—when `--vlm`
-is enabled—`vlm_reviews.json`.
+alerts), `events.json`, `ticks.jsonl`, `ticks.meta.json`, and `config.json`.
+`evaluation.json` is produced only by `eldercare.evaluate`, and `vlm_reviews.json`
+only when `--vlm` is enabled.
+
+Each successful run also writes `run.json`: source/tick hashes, full config and
+config hash, Git/package/host versions, loaded model hashes, requested and
+actual per-model execution devices, warnings, and output artifact hashes.
+Check a result folder with `python -m eldercare.provenance verify results/`.
+`--out` refuses a folder containing source files, unknown files, or a legacy
+result without `run.json`. If the source video or config differs, choose a new
+folder or pass `--overwrite`. Overwrite first archives only recognized artifacts
+to `<parent>/_archive/<name>-<UTC timestamp>/`, prints its location and byte
+size, and never deletes archives. The repository root, home directory, and
+parents of the repository are always rejected as output targets.
+
+Thresholds retain their original defaults in `eldercare/config.py`. Use
+`--config configs/default.yaml` or your own YAML profile to override selected
+fields; `--analysis-fps` and `--vlm-max-reviews` take precedence over the file.
+Unknown keys and out-of-range values are rejected before processing.
+
+Diagnostics are JSON lines on stderr. Use `--log-level DEBUG|INFO|WARNING|ERROR`
+to control verbosity and `--log-file /path/to/run.log` to retain them. A log
+inside the result folder must be named `run.log`, so provenance checks can
+recognize and hash it. The human timeline/summary/events remain on stdout;
+neither API keys nor image bytes are logged.
 
 ## Implementation notes
 

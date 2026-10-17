@@ -1,0 +1,50 @@
+{
+  "total_observation_time": "17.28s",
+  "activity_summary": {
+    "lying_in_bed": "0s",
+    "sitting_on_bed": "0s",
+    "sitting_outside_bed": "0s",
+    "standing": "0s",
+    "walking": "0s",
+    "out_of_bed": "0s",
+    "unknown": "17.28s"
+  },
+  "bed_summary": {
+    "time_in_bed": "0s",
+    "time_out_of_bed": "0s",
+    "time_location_unknown": "17.28s",
+    "bed_exit_count": 0,
+    "bed_return_count": 0
+  },
+  "summary": {
+    "observation_duration_sec": 17.28,
+    "activity_duration_sec": {
+      "lying_in_bed": 0.0,
+      "sitting_on_bed": 0.0,
+      "sitting_outside_bed": 0.0,
+      "standing": 0.0,
+      "walking": 0.0,
+      "out_of_bed": 0.0,
+      "unknown": 17.28
+    },
+    "bed_exit_count": 0,
+    "bed_return_count": 0,
+    "total_in_bed_sec": 0,
+    "total_out_of_bed_sec": 0,
+    "total_location_unknown_sec": 17.28,
+    "longest_out_of_bed_period_sec": 0.0,
+    "final_state": "unknown",
+    "overall_decision": "NORMAL"
+  },
+  "events": [],
+  "alerts": [],
+  "analysis": {
+    "timeline_source": "raw_perception_ticks",
+    "tick_count": 72,
+    "measured_tick_period_sec": 0.24,
+    "smoothing_applied_to_activity_durations": false,
+    "temporal_reasoning_used_for_events_only": true,
+    "input_type": "ticks",
+    "input_path": "<fixture>/ticks.jsonl"
+  }
+}

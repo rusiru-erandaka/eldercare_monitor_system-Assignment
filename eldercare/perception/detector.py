@@ -5,6 +5,8 @@ OpenVINO IR files are decoded locally. Model API directories and model IDs use
 """
 from __future__ import annotations
 
+import logging
+from pathlib import Path
 from typing import List
 
 import numpy as np
@@ -12,6 +14,8 @@ import numpy as np
 from ..config import Config
 from ..schema import BoundingBox, Detections
 from .yolo_ov import YoloOpenVINO, nms, unletterbox_boxes
+
+logger = logging.getLogger(__name__)
 
 
 class ObjectDetector:
@@ -26,10 +30,35 @@ class ObjectDetector:
       self._raw = YoloOpenVINO(model_path, None, device_name, normalize, tag="ObjectDetector")
     else:
       from model_api.models import Model  # lazy: only needed for this backend
-      print(f"[ObjectDetector] model_api backend on {device_name}")
-      self._model_api = Model.from_pretrained(
-          model_path, device=device_name,
-          configuration={"confidence_threshold": self.low_conf})
+      logger.info("Using model-api detector backend", extra={
+          "event": "model_backend", "model": "detector",
+          "requested_device": device_name,
+      })
+      local_path = Path(model_path)
+      if local_path.is_dir():
+        xml_files = list(local_path.glob("*.xml"))
+        if len(xml_files) != 1:
+          raise ValueError(f"Expected exactly one detector XML in {local_path}")
+        self._model_api = Model.create_model(
+            model=str(xml_files[0]), device=device_name,
+            configuration={"confidence_threshold": self.low_conf})
+      else:
+        self._model_api = Model.from_pretrained(
+            model_path, device=device_name,
+            configuration={"confidence_threshold": self.low_conf})
+
+  @property
+  def execution_devices(self) -> list[str]:
+    if self._raw is not None:
+      return self._raw.execution_devices
+    adapter = self._model_api.inference_adapter
+    return list(adapter.compiled_model.get_property("EXECUTION_DEVICES"))
+
+  @property
+  def resolved_model_path(self) -> str:
+    if self._raw is not None:
+      return self._raw.model_xml_path
+    return str(self._model_api.inference_adapter.model_path)
 
   # -- public ---------------------------------------------------------------
   def detect(self, frame: np.ndarray) -> Detections:

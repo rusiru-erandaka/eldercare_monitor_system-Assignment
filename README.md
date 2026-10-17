@@ -106,6 +106,11 @@ to `<parent>/_archive/<name>-<UTC timestamp>/`, prints its location and byte
 size, and never deletes archives. The repository root, home directory, and
 parents of the repository are always rejected as output targets.
 
+Thresholds retain their original defaults in `eldercare/config.py`. Use
+`--config configs/default.yaml` or your own YAML profile to override selected
+fields; `--analysis-fps` and `--vlm-max-reviews` take precedence over the file.
+Unknown keys and out-of-range values are rejected before processing.
+
 ## Implementation notes
 
 * **Why two models.** YOLO11 is robust for *where* (person/bed boxes); pose gives *how*

@@ -1,0 +1,3 @@
+# Baseline profile. Omitted settings use the validated Config defaults.
+# Keeping this file minimal avoids a second independent copy of 87 thresholds.
+analysis_fps: 4.0

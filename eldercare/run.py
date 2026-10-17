@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import Optional, Sequence
 
 import cv2
+from pydantic import ValidationError
 
 from .config import Config
 from .models import model_directory, model_xml, verify_model
@@ -60,10 +61,11 @@ def parse_args(argv: Optional[Sequence[str]] = None):
       default=str(model_xml("pose")))
   parser.add_argument("--device", default="GPU")
   parser.add_argument("--out", default="results")
+  parser.add_argument("--config", help="YAML profile; CLI values override it")
   parser.add_argument("--overwrite", action="store_true",
                       help="archive approved existing output artifacts before running")
   parser.add_argument(
-      "--analysis-fps", type=float, default=4.0,
+      "--analysis-fps", type=float,
       help="pose sampling rate; detector runs at half this rate (default: 4)")
   parser.add_argument(
       "--bed-roi", type=parse_bed_roi,
@@ -259,16 +261,29 @@ def validate_args(args):
     raise SystemExit("--video or --from-ticks is required")
   if args.vlm and not args.video:
     raise SystemExit("--vlm requires --video so review frames can be extracted")
-  if args.analysis_fps <= 0:
+  if args.analysis_fps is not None and args.analysis_fps <= 0:
     raise SystemExit("--analysis-fps must be greater than zero")
   if args.max_seconds is not None and args.max_seconds <= 0:
     raise SystemExit("--max-seconds must be greater than zero")
 
 
+def build_config(args) -> Config:
+  overrides = {}
+  if args.analysis_fps is not None:
+    overrides["analysis_fps"] = args.analysis_fps
+  if args.vlm_max_reviews is not None:
+    overrides["vlm_max_reviews"] = args.vlm_max_reviews
+  try:
+    return (Config.from_yaml(args.config, overrides) if args.config else
+            Config(**overrides))
+  except (OSError, ValueError, ValidationError) as exc:
+    raise SystemExit(f"Invalid configuration: {exc}") from exc
+
+
 def main(argv: Optional[Sequence[str]] = None):
   args = parse_args(argv)
   validate_args(args)
-  cfg = Config(analysis_fps=args.analysis_fps)
+  cfg = build_config(args)
   original_ticks = Path(args.from_ticks).resolve() if args.from_ticks else None
   original_out = Path(args.out).absolute().resolve()
   if args.from_ticks and args.video:

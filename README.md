@@ -67,6 +67,9 @@ installation above. CI runs lint, type checking and the model-free suite on
 each push and pull request. The pre-commit hooks need `pre-commit` installed
 separately (`pre-commit run --all-files`); the credential hook is deliberately
 basic and must not be treated as a guarantee that secrets are absent.
+The regression fixtures under `tests/golden/` replay saved CV ticks from the
+starting commit. They are a change detector, not accuracy ground truth; see
+`tests/golden/README.md` for the known-bad outcomes they intentionally lock.
 
 ## Run
 

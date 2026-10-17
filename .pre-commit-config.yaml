@@ -10,7 +10,7 @@ repos:
         name: Ruff format (Phase 0 modules)
         entry: .venv/bin/ruff format --check
         language: system
-        files: ^(eldercare/(config|models|provenance|logging_utils)\.py|scripts/fetch_models\.py|tests/test_(config|models|model_assets|provenance|logging)\.py)$
+        files: ^(eldercare/(config|models|provenance|logging_utils)\.py|scripts/fetch_models\.py|tests/test_(config|models|model_assets|provenance|logging|goldens)\.py)$
       - id: whitespace
         name: Staged whitespace check
         entry: git diff --cached --check

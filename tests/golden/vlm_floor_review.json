@@ -1,0 +1,30 @@
+{
+  "reviews": [
+    {
+      "window": {
+        "start_sec": 5.5,
+        "end_sec": 8.0,
+        "trigger": "partial_body+bed_or_floor_ambiguity"
+      },
+      "vlm_result": {
+        "observation": "The elder is seen exiting the bed in early frames, standing briefly near the bed at 00:05, and subsequently falling or lying down directly onto the wooden floor near the bed in the later frames from 00:06.75 to 00:07.75.",
+        "previous_segment_finding": "At 00:05.25 CV reported WALKING with the elder standing or moving near the bed.",
+        "current_segment_finding": "Between 00:05.5 and 00:08, the elder transitions from standing to lying horizontally on the floor.",
+        "following_segment_finding": "No subsequent automated segment is available.",
+        "conclusion": "BED_EXIT",
+        "resolved_activity": "LYING_ON_FLOOR",
+        "person_location": "OUTSIDE_BED",
+        "confidence": 0.95,
+        "evidence": [
+          "Elder starts on the bed sitting up and moves away.",
+          "Elder is standing on the floor at timestamp 00:05.",
+          "Elder is clearly lying on the wooden floor at timestamps 00:06.75 and 00:07.75."
+        ],
+        "needs_more_context": false,
+        "human_review_required": false
+      },
+      "accepted": true,
+      "cv_vlm_conflict": false
+    }
+  ]
+}

@@ -6,7 +6,7 @@ setup:
 
 lint:
 	.venv/bin/ruff check eldercare tests scripts
-	.venv/bin/ruff format --check eldercare/config.py eldercare/models.py eldercare/provenance.py eldercare/logging_utils.py scripts/fetch_models.py tests/test_config.py tests/test_models.py tests/test_model_assets.py tests/test_provenance.py tests/test_logging.py
+	.venv/bin/ruff format --check eldercare/config.py eldercare/models.py eldercare/provenance.py eldercare/logging_utils.py scripts/fetch_models.py tests/test_config.py tests/test_models.py tests/test_model_assets.py tests/test_provenance.py tests/test_logging.py tests/test_goldens.py
 
 typecheck:
 	.venv/bin/mypy

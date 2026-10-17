@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "tick_count": 32,
+  "source_video": {
+    "path": "fallback.mp4 (video not shipped)",
+    "size_bytes": 1791416,
+    "sha256": "b0ec3cc87a2375f89e5520c8d440b0a9f5c913ff135aeebf18d453a77fdfa5dc"
+  }
+}

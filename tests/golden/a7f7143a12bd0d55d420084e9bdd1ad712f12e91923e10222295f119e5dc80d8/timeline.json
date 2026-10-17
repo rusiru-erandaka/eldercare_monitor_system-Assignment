@@ -1,0 +1,58 @@
+[
+  {
+    "state": "UNKNOWN",
+    "start": 0.0,
+    "end": 3.36,
+    "confidence": 0.2,
+    "note": "raw_model_output",
+    "track_id": 1
+  },
+  {
+    "state": "UNKNOWN",
+    "start": 3.36,
+    "end": 3.6,
+    "confidence": 0.0,
+    "note": "elder_not_observed",
+    "track_id": null
+  },
+  {
+    "state": "UNKNOWN",
+    "start": 3.6,
+    "end": 6.72,
+    "confidence": 0.2,
+    "note": "raw_model_output",
+    "track_id": 1
+  },
+  {
+    "state": "UNKNOWN",
+    "start": 6.72,
+    "end": 9.84,
+    "confidence": 0.0,
+    "note": "elder_not_observed",
+    "track_id": null
+  },
+  {
+    "state": "UNKNOWN",
+    "start": 9.84,
+    "end": 12.24,
+    "confidence": 0.2,
+    "note": "raw_model_output",
+    "track_id": 1
+  },
+  {
+    "state": "UNKNOWN",
+    "start": 12.24,
+    "end": 12.96,
+    "confidence": 0.0,
+    "note": "elder_not_observed",
+    "track_id": null
+  },
+  {
+    "state": "UNKNOWN",
+    "start": 12.96,
+    "end": 17.28,
+    "confidence": 0.2,
+    "note": "raw_model_output",
+    "track_id": 1
+  }
+]

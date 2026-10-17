@@ -3,7 +3,8 @@
 Rationale
 ---------
 ALERT:
-  A1  VLM-confirmed lying on the floor immediately, or CV-only floor lying >= 30 seconds
+  A1  VLM-confirmed lying on the floor immediately, or CV-only floor lying for
+      the configured duration
   A3  out of bed AND actually unobserved for >= 40 minutes
 MONITOR:
   M2  sitting at the bed edge (<75% person-box overlap) for >= 3 minutes
@@ -86,6 +87,24 @@ def _unseen_episodes(records: List[TickRecord], cfg: Config):
   return episodes
 
 
+def _floor_episodes(records: List[TickRecord], cfg: Config):
+  """Find continuous, observed floor postures in the raw activity ticks."""
+  episodes, start, end = [], None, None
+  for rec, t0, t1 in _tick_spans(records, cfg):
+    on_floor = (rec.observed and rec.state == S.LYING_ON_FLOOR.value and
+                rec.confidence >= cfg.min_conf)
+    if on_floor:
+      if start is None:
+        start = t0
+      end = t1
+    elif start is not None:
+      episodes.append((start, end))
+      start = end = None
+  if start is not None:
+    episodes.append((start, end))
+  return episodes
+
+
 def _edge_sitting_episodes(records: List[TickRecord], cfg: Config):
   """Return edge-sitting periods, bridging only brief UNKNOWN detection gaps."""
   pieces = []
@@ -123,11 +142,13 @@ def evaluate(segments: List[Segment], events: List[Event], runs: List[Run],
              cfg: Config, records: Optional[List[TickRecord]] = None) -> Tuple[List[Alert], str]:
   alerts: List[Alert] = []
 
-  for s in segments:
-    d = s.duration
-    if s.state == S.LYING_ON_FLOOR and d >= cfg.alert_floor_lying_sec:
-      alerts.append(Alert(s.start + cfg.alert_floor_lying_sec, "ALERT", "A1_floor_lying",
-                          f"Lying on the floor for {d:.0f}s (possible fall)"))
+  floor_periods = (_floor_episodes(records, cfg) if records is not None else
+                   [(s.start, s.end) for s in segments if s.state == S.LYING_ON_FLOOR])
+  for start, end in floor_periods:
+    duration = end - start
+    if duration >= cfg.alert_floor_lying_sec:
+      alerts.append(Alert(start + cfg.alert_floor_lying_sec, "ALERT", "A1_floor_lying",
+                          f"Lying on the floor for {duration:.0f}s (possible fall)"))
 
   if records is not None:
     for start, end in _edge_sitting_episodes(records, cfg):
@@ -182,13 +203,14 @@ def evaluate(segments: List[Segment], events: List[Event], runs: List[Run],
 
 
 def apply_vlm_safety_escalations(vlm_result: dict, alerts: List[Alert],
-                                 overall: str, cfg: Config):
+                                 overall: str, cfg: Config,
+                                 records: Optional[List[TickRecord]] = None):
   """Allow accepted VLM evidence to escalate safety, never to downgrade it.
 
-  A short clip cannot satisfy the conservative 30-second CV-only floor rule.
+  A short clip cannot satisfy the configured CV-only floor duration.
   However, when the selective visual review independently confirms that the
   person is lying outside the bed with very high confidence, waiting another
-  28 seconds would delay a possible-fall alert.  This function changes only the
+  several seconds would delay a possible-fall alert. This function changes only the
   risk decision; raw activities, timestamps and event counts remain untouched.
   """
   escalations = []
@@ -196,14 +218,21 @@ def apply_vlm_safety_escalations(vlm_result: dict, alerts: List[Alert],
     answer = review.get("vlm_result", {})
     clearly_floor = (
         review.get("accepted") is True and
-        answer.get("conclusion") == S.LYING_ON_FLOOR.value and
         answer.get("resolved_activity") == S.LYING_ON_FLOOR.value and
         answer.get("person_location") == "OUTSIDE_BED" and
         float(answer.get("confidence", 0.0)) >= cfg.vlm_floor_alert_conf and
         not answer.get("human_review_required", False))
     if not clearly_floor:
       continue
-    start = float(review.get("window", {}).get("start_sec", 0.0))
+    window = review.get("window", {})
+    start = float(window.get("start_sec", 0.0))
+    end = float(window.get("end_sec", start))
+    if records is not None:
+      floor_ticks = [rec.t for rec in records
+                     if start <= rec.t < end and rec.observed and
+                     rec.state == S.LYING_ON_FLOOR.value]
+      if floor_ticks:
+        start = min(floor_ticks)
     confidence = float(answer["confidence"])
     # Avoid two alerts for the same episode if the longer CV rule also fired.
     duplicate = any(a.rule.startswith("A1_") and abs(a.time - start) <= 30.0

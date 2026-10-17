@@ -191,7 +191,7 @@ def apply_vlm_review(args, cfg: Config, records, events, alerts, overall: str,
   report["agentic_analysis"] = report_summary(result)
 
   alerts, overall, escalations = apply_vlm_safety_escalations(
-      result, alerts, overall, cfg)
+      result, alerts, overall, cfg, records)
   report["alerts"] = [alert.to_dict() for alert in alerts]
   report["summary"]["overall_decision"] = overall
   report["agentic_analysis"]["safety_escalations"] = escalations

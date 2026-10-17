@@ -16,6 +16,7 @@ from typing import Dict, Iterable, List, Optional, Protocol, Sequence, Tuple
 import cv2
 
 from .config import Config
+from .environment import load_project_env
 from .schema import ActivityState as S, TickRecord, fmt_mmss
 from .temporal import tick_period
 
@@ -98,10 +99,12 @@ class GeminiBackend:
 
   def __init__(self, model: str = "gemini-3.5-flash-lite",
                api_key_env: str = "GEMINI_API_KEY"):
-    key = os.environ.get(api_key_env)
+    env_path = load_project_env()
+    key = os.environ.get(api_key_env, "").strip()
     if not key:
       raise RuntimeError(
-          f"{api_key_env} is not set. Export the Gemini API key, or run without --vlm.")
+          f"{api_key_env} is not configured. Add {api_key_env}=YOUR_KEY to "
+          f"{env_path}, export it in the shell, or run without --vlm.")
     try:
       from google import genai
       from google.genai import types
@@ -370,7 +373,9 @@ Compare the same elder across the before/current/after frames. Use visible bed b
 person-bed overlap, posture, direction of movement, and temporal order. A BED_EXIT requires
 evidence of starting in/on the bed followed by moving away outside it. A BED_RETURN requires
 starting outside, approaching/entering the bed, and ending visibly lying in bed. Distinguish
-lying on the bed from lying on the floor using scene geometry. Do not manufacture an action
+lying on the bed from lying on the floor using scene geometry. If the person ends up lying
+on the floor, set conclusion and resolved_activity to LYING_ON_FLOOR even if a bed exit
+also occurred; describe the preceding bed exit in the evidence. Do not manufacture an action
 that is not visible. If identity, location, or temporal direction is unclear, choose
 INSUFFICIENT_EVIDENCE and request human review. Return only the required JSON object."""
 

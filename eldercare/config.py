@@ -105,7 +105,7 @@ class Config:
   normal_middle_sit_sec: float = 600.0    # documented normal reading/resting period
   monitor_unknown_sec: float = 90.0       # cumulative fragmented UNKNOWN episode
   monitor_out_of_bed_sec: float = 1800.0  # 30 min (slow bathing/meals are expected)
-  alert_floor_lying_sec: float = 30.0     # lying on floor = possible fall
+  alert_floor_lying_sec: float = 10.0     # lying on floor = possible fall
   alert_lost_sec: float = 2400.0          # out of bed AND truly unseen for 40 min
   min_event_conf: float = 0.60            # quality metadata; does not set risk level
 

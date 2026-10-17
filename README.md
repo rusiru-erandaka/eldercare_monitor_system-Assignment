@@ -41,6 +41,10 @@ video ──(4 FPS ticks, video timestamps)──┐
 ```bash
 pip install -r requirements.txt
 
+# Gemini is optional. For VLM review, create the local credentials file:
+cp .env.example .env
+# Then edit .env and set: GEMINI_API_KEY=your_actual_key
+
 # 1) sanity-check the two models on ONE frame first (writes debug_out.png)
 python -m eldercare.debug_image --image ../frame.png \
     --det-model OpenVINO/YOLO11n-fp16-ov \
@@ -60,7 +64,6 @@ python -m eldercare.run --from-ticks results/ticks.jsonl --out results/
 python -m eldercare.evaluate --pred results/ --gt gt_timeline.txt
 
 # 5) selective agentic VLM review (not every frame)
-export GEMINI_API_KEY="your-key"       # do not put the key in source code
 python -m eldercare.run --from-ticks results/ticks.jsonl --video ../room.mp4 \
     --out results/ --vlm
 # Re-running uses results/vlm_reviews.json when the video/ticks/model match.
@@ -126,7 +129,8 @@ is enabled—`vlm_reviews.json`.
   (including reading/resting for 10 minutes or longer). MONITOR: edge sitting (`bed_overlap < 0.75`)
   for >= 3 minutes; out of bed for >= 30 minutes; or a fragmented UNKNOWN episode totalling >= 90
   seconds before the next known activity. ALERT: high-confidence VLM-confirmed floor lying is
-  immediate; without VLM confirmation, continuous CV floor-lying must persist for >= 30 seconds;
+  immediate; without VLM confirmation, continuous raw CV floor-lying must persist for
+  the duration set by `alert_floor_lying_sec` (currently 10 seconds);
   out of bed and truly unobserved for >= 40 minutes is also ALERT. Event confidence remains audit
   metadata, not a risk decision.
 * **Agentic VLM review** (`vlm.py`): OpenVINO remains the always-on, local perception layer.
@@ -138,7 +142,9 @@ is enabled—`vlm_reviews.json`.
   as `CV_VLM_CONFLICT` and requires human review rather than choosing either side automatically. Full
   prompts, frame timestamps, findings, and conclusions are cached in `vlm_reviews.json`. VLM never
   rewrites raw timestamps, activity durations, or deterministic event counts. Its only direct risk
-  effect is escalation: a >=0.90 accepted `LYING_ON_FLOOR` result immediately raises `ALERT`; VLM
+  effect is escalation: an accepted outside-bed `LYING_ON_FLOOR` activity with >=0.90
+  confidence immediately raises `ALERT`, even if the VLM describes the preceding
+  sequence as a bed exit; VLM
   cannot lower an existing decision.
 * **No cross-video cache mixing.** `ticks.jsonl` is accompanied by `ticks.meta.json`, containing
   the SHA-256 identity of its source video. Supplying `--from-ticks` together with a different

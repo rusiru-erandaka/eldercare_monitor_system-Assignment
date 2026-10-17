@@ -36,10 +36,28 @@ video ──(4 FPS ticks, video timestamps)──┐
              [Gemini agent: selective before/current/after visual review]
 ```
 
+## Reproducible environment
+
+This project targets Python 3.14.4. Install `uv`, then from a fresh clone run:
+
+```bash
+uv python install 3.14.4
+uv sync --locked --group dev --extra vlm
+uv run --locked python -m pytest -q
+uv pip check --python .venv/bin/python
+```
+
+`uv.lock` is the authoritative dependency lock, including pinned OpenVINO
+2026.4.0 and openvino-model-api 0.4.7. `requirements.txt` is a generated
+core-only export for environments that use pip; regenerate it with
+`uv export --locked --no-dev --no-emit-project --format requirements-txt -o requirements.txt`.
+The optional Gemini client is installed by the `vlm` extra. Test and development
+tools are installed by the `dev` group. Model weights are managed separately.
+
 ## Run
 
 ```bash
-pip install -r requirements.txt
+# Activate the environment created above, or prefix commands with `uv run --locked`.
 
 # Gemini is optional. For VLM review, create the local credentials file:
 cp .env.example .env

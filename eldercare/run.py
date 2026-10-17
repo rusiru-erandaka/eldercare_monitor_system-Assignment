@@ -22,6 +22,7 @@ from typing import Optional, Sequence
 import cv2
 
 from .config import Config
+from .models import model_directory, model_xml, verify_model
 from .pipeline import (PerceptionPipeline, draw_overlay, iter_video, load_ticks,
                        save_ticks, validate_ticks_video)
 from .report import analyze, timeline_lines, write_outputs
@@ -47,10 +48,10 @@ def parse_args(argv: Optional[Sequence[str]] = None):
       description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
   parser.add_argument("--video")
   parser.add_argument("--from-ticks", help="analyse verified cached tick records")
-  parser.add_argument("--det-model", default="OpenVINO/YOLO11n-fp16-ov")
+  parser.add_argument("--det-model", default=str(model_directory("detector")))
   parser.add_argument(
       "--pose-model",
-      default="../yolov8n-pose_openvino_model/yolov8n-pose.xml")
+      default=str(model_xml("pose")))
   parser.add_argument("--device", default="GPU")
   parser.add_argument("--out", default="results")
   parser.add_argument(
@@ -105,6 +106,11 @@ def build_pipeline(args, cfg: Config) -> PerceptionPipeline:
   from .perception.detector import ObjectDetector
   from .perception.pose import PoseEstimator
 
+  for name, selected in (("detector", args.det_model), ("pose", args.pose_model)):
+    pinned = model_directory(name) if name == "detector" else model_xml(name)
+    if os.path.abspath(selected) == str(pinned.resolve()):
+      for path, digest in verify_model(name).items():
+        print(f"[{name}] verified model {path} sha256={digest}")
   normalize = not args.no_normalize
   detector = ObjectDetector(args.det_model, cfg, args.device, normalize=normalize)
   pose = PoseEstimator(

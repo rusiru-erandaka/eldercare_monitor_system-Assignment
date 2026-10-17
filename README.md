@@ -53,6 +53,9 @@ core-only export for environments that use pip; regenerate it with
 `uv export --locked --no-dev --no-emit-project --format requirements-txt -o requirements.txt`.
 The optional Gemini client is installed by the `vlm` extra. Test and development
 tools are installed by the `dev` group. Model weights are managed separately.
+See `models/README.md`: the local XML/BIN files are hash-pinned but intentionally
+Git-ignored. Supply local model sources to `python scripts/fetch_models.py` after
+a fresh clone; no unverified download URL is assumed.
 
 ## Run
 
@@ -65,13 +68,11 @@ cp .env.example .env
 
 # 1) sanity-check the two models on ONE frame first (writes debug_out.png)
 python -m eldercare.debug_image --image ../frame.png \
-    --det-model OpenVINO/YOLO11n-fp16-ov \
-    --pose-model ../yolov8n-pose_openvino_model/yolov8n-pose.xml --device GPU
+    --device GPU
 
 # 2) full video (use --device CPU if no Intel GPU)
 python -m eldercare.run --video ../room.mp4 --out results/ \
-    --det-model OpenVINO/YOLO11n-fp16-ov \
-    --pose-model ../yolov8n-pose_openvino_model/yolov8n-pose.xml \
+    --device GPU \
     --save-video            # optional annotated overlay.mp4
 #    --bed-roi 40,300,900,700   manual bed box if the detector misses it
 

@@ -5,6 +5,7 @@ OpenVINO IR files are decoded locally. Model API directories and model IDs use
 """
 from __future__ import annotations
 
+from pathlib import Path
 from typing import List
 
 import numpy as np
@@ -27,9 +28,18 @@ class ObjectDetector:
     else:
       from model_api.models import Model  # lazy: only needed for this backend
       print(f"[ObjectDetector] model_api backend on {device_name}")
-      self._model_api = Model.from_pretrained(
-          model_path, device=device_name,
-          configuration={"confidence_threshold": self.low_conf})
+      local_path = Path(model_path)
+      if local_path.is_dir():
+        xml_files = list(local_path.glob("*.xml"))
+        if len(xml_files) != 1:
+          raise ValueError(f"Expected exactly one detector XML in {local_path}")
+        self._model_api = Model.create_model(
+            model=str(xml_files[0]), device=device_name,
+            configuration={"confidence_threshold": self.low_conf})
+      else:
+        self._model_api = Model.from_pretrained(
+            model_path, device=device_name,
+            configuration={"confidence_threshold": self.low_conf})
 
   # -- public ---------------------------------------------------------------
   def detect(self, frame: np.ndarray) -> Detections:

@@ -1,4 +1,5 @@
 """Output guards and manifest verification must fail closed."""
+
 from __future__ import annotations
 
 import json
@@ -78,8 +79,11 @@ def test_verify_detects_tampered_artifact(tmp_path):
     settings = {"analysis_fps": 4.0}
     manifest = manifest_template(
         ["eldercare.run", "--video", str(source)],
-        {"kind": "video", "video": file_identity(source),
-         "source_sha256": file_identity(source)["sha256"]},
+        {
+            "kind": "video",
+            "video": file_identity(source),
+            "source_sha256": file_identity(source)["sha256"],
+        },
         settings,
         "GPU",
     )
@@ -93,5 +97,9 @@ def test_verify_detects_tampered_artifact(tmp_path):
 
 def test_sensitive_cli_values_are_redacted():
     assert redacted_command(["--api-key", "secret-value", "--token=abc", "--video", "x"]) == [
-        "--api-key", "<redacted>", "--token=<redacted>", "--video", "x",
+        "--api-key",
+        "<redacted>",
+        "--token=<redacted>",
+        "--video",
+        "x",
     ]

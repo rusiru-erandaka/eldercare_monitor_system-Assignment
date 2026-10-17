@@ -1,4 +1,5 @@
 """Pinned local model assets and SHA-256 verification."""
+
 from __future__ import annotations
 
 import hashlib
@@ -41,7 +42,12 @@ def model_xml(name: str) -> Path:
     entry = load_manifest()["models"].get(name)
     if not isinstance(entry, dict):
         raise ValueError(f"Unknown model name: {name}")
-    xml_files = [filename for filename in entry["files"] if filename.endswith(".xml")]
+    files = entry.get("files")
+    if not isinstance(files, dict):
+        raise ValueError(f"No files listed for {name} in {MANIFEST}")
+    xml_files = [
+        filename for filename in files if isinstance(filename, str) and filename.endswith(".xml")
+    ]
     if len(xml_files) != 1:
         raise ValueError(f"Expected exactly one XML for {name}")
     return model_directory(name) / xml_files[0]
@@ -62,11 +68,13 @@ def verify_model(name: str) -> dict[str, str]:
         path = directory / filename
         if not path.is_file():
             raise FileNotFoundError(
-                f"Pinned {name} model file missing: {path}. Run scripts/fetch_models.py.")
+                f"Pinned {name} model file missing: {path}. Run scripts/fetch_models.py."
+            )
         actual = sha256_file(path)
         if actual != expected:
             raise ValueError(
                 f"Pinned {name} model hash mismatch: {path} "
-                f"(expected {expected}, got {actual}). Refusing to load it.")
+                f"(expected {expected}, got {actual}). Refusing to load it."
+            )
         verified[str(path.resolve())] = actual
     return verified

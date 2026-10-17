@@ -1,0 +1,23 @@
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: Ruff lint
+        entry: .venv/bin/ruff check
+        language: system
+        types: [python]
+      - id: ruff-format-new-modules
+        name: Ruff format (Phase 0 modules)
+        entry: .venv/bin/ruff format --check
+        language: system
+        files: ^(eldercare/(config|models|provenance|logging_utils)\.py|scripts/fetch_models\.py|tests/test_(config|models|model_assets|provenance|logging)\.py)$
+      - id: whitespace
+        name: Staged whitespace check
+        entry: git diff --cached --check
+        language: system
+        pass_filenames: false
+      - id: secret-scan
+        name: Basic credential scan
+        entry: .venv/bin/python scripts/check_secrets.py
+        language: system
+        types: [text]

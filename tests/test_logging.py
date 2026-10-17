@@ -1,4 +1,5 @@
 """Machine-readable diagnostics do not alter the human CLI report."""
+
 from __future__ import annotations
 
 import json
@@ -11,8 +12,13 @@ from eldercare.logging_utils import JsonFormatter, validate_log_file
 
 def test_json_log_record_has_required_fields():
     record = logging.LogRecord(
-        name="eldercare.run", level=logging.INFO, pathname=__file__, lineno=1,
-        msg="Model ready", args=(), exc_info=None,
+        name="eldercare.run",
+        level=logging.INFO,
+        pathname=__file__,
+        lineno=1,
+        msg="Model ready",
+        args=(),
+        exc_info=None,
     )
     record.event = "model_ready"
     record.model = "pose"

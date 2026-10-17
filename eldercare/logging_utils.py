@@ -1,4 +1,5 @@
 """Small JSON-lines logger for run diagnostics; CLI reports remain on stdout."""
+
 from __future__ import annotations
 
 import json
@@ -9,8 +10,17 @@ from pathlib import Path
 from typing import Any
 
 _FIELDS = (
-    "run_id", "track_id", "model", "requested_device", "execution_devices",
-    "path", "sha256", "tick_count", "elapsed_sec", "status", "error_type",
+    "run_id",
+    "track_id",
+    "model",
+    "requested_device",
+    "execution_devices",
+    "path",
+    "sha256",
+    "tick_count",
+    "elapsed_sec",
+    "status",
+    "error_type",
 )
 
 
@@ -18,7 +28,8 @@ class JsonFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         payload: dict[str, Any] = {
             "timestamp": datetime.fromtimestamp(record.created, timezone.utc).isoformat(
-                timespec="milliseconds"),
+                timespec="milliseconds"
+            ),
             "level": record.levelname,
             "component": record.name,
             "event": getattr(record, "event", "message"),

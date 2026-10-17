@@ -1,4 +1,5 @@
 """Copy only locally supplied, hash-pinned OpenVINO model assets."""
+
 from __future__ import annotations
 
 import argparse
@@ -24,8 +25,8 @@ def import_model(name: str, source: Path) -> None:
         actual = sha256_file(candidate)
         if actual != expected:
             raise ValueError(
-                f"{name} source hash mismatch for {candidate}: "
-                f"expected {expected}, got {actual}")
+                f"{name} source hash mismatch for {candidate}: expected {expected}, got {actual}"
+            )
         target = destination / filename
         if target.exists() and sha256_file(target) != expected:
             raise ValueError(f"Refusing to replace corrupted destination: {target}")
@@ -48,9 +49,19 @@ def import_model(name: str, source: Path) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--detector-source", type=Path, required=True)
-    parser.add_argument("--pose-source", type=Path, required=True)
+    parser.add_argument("--detector-source", type=Path)
+    parser.add_argument("--pose-source", type=Path)
+    parser.add_argument("--verify-only", action="store_true")
     args = parser.parse_args()
+    if args.verify_only:
+        for name in ("detector", "pose"):
+            for path, digest in verify_model(name).items():
+                print(f"verified {name}: {path} sha256={digest}")
+        return
+    if args.detector_source is None or args.pose_source is None:
+        parser.error(
+            "--detector-source and --pose-source are required unless --verify-only is used"
+        )
     import_model("detector", args.detector_source)
     import_model("pose", args.pose_source)
 

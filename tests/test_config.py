@@ -1,4 +1,5 @@
 """Configuration values must be validated and intentional."""
+
 from __future__ import annotations
 
 import ast
@@ -21,8 +22,7 @@ def test_defaults_keep_the_original_snapshot_hash():
 def test_yaml_loads_and_cli_has_precedence(tmp_path):
     profile = tmp_path / "profile.yaml"
     profile.write_text("analysis_fps: 2.0\nperson_conf: 0.4\n", encoding="utf-8")
-    args = parse_args(["--video", "clip.mp4", "--config", str(profile),
-                       "--analysis-fps", "3.0"])
+    args = parse_args(["--video", "clip.mp4", "--config", str(profile), "--analysis-fps", "3.0"])
     config = build_config(args)
     assert config.analysis_fps == 3.0
     assert config.person_conf == 0.4
@@ -59,7 +59,9 @@ def test_config_fields_are_used_or_explicitly_reviewed():
     #   exit_min_out_sec; this 30-second value has no consumer.
     # - min_event_conf: event confidence is metadata, not a risk gate today.
     reviewed_unused = {
-        "normal_middle_sit_sec", "exit_long_out_sec", "min_event_conf",
+        "normal_middle_sit_sec",
+        "exit_long_out_sec",
+        "min_event_conf",
     }
     unused = set(Config.model_fields) - used_attributes
     assert unused == reviewed_unused, f"Unreviewed/changed unused config fields: {unused}"

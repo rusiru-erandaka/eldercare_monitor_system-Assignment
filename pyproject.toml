@@ -34,3 +34,30 @@ dev = [
 
 [tool.setuptools.packages.find]
 include = ["eldercare*"]
+
+[tool.ruff]
+target-version = "py314"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]
+
+[tool.ruff.lint.per-file-ignores]
+# Pre-existing compact tests are left untouched in behavior-preserving Phase 0.
+"tests/test_evaluate.py" = ["E401", "E702"]
+"tests/test_perception.py" = ["E701", "E731", "F401"]
+
+[tool.mypy]
+python_version = "3.14"
+ignore_missing_imports = true
+follow_imports = "silent"
+# Expand to legacy modules after their pre-existing typing errors are resolved.
+files = ["eldercare/config.py", "eldercare/models.py", "eldercare/provenance.py", "eldercare/logging_utils.py"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+  "unit: model-free unit test",
+  "needs_models: requires the pinned local OpenVINO XML/BIN files",
+  "slow: takes materially longer than a normal unit test",
+]

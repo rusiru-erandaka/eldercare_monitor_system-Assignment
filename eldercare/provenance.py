@@ -1,4 +1,5 @@
 """Run manifests, verified artifacts, and guarded output-folder archiving."""
+
 from __future__ import annotations
 
 import argparse
@@ -8,7 +9,6 @@ import json
 import os
 import platform
 import subprocess
-import sys
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -16,11 +16,22 @@ from typing import Any, Sequence
 
 from .models import PROJECT_ROOT, sha256_file
 
-ARTIFACT_NAMES = frozenset({
-    "config.json", "events.json", "evaluation.json", "overlay.mp4",
-    "run.json", "run.log", "summary.json", "ticks.jsonl", "ticks.meta.json",
-    "timeline.json", "timeline.txt", "vlm_reviews.json",
-})
+ARTIFACT_NAMES = frozenset(
+    {
+        "config.json",
+        "events.json",
+        "evaluation.json",
+        "overlay.mp4",
+        "run.json",
+        "run.log",
+        "summary.json",
+        "ticks.jsonl",
+        "ticks.meta.json",
+        "timeline.json",
+        "timeline.txt",
+        "vlm_reviews.json",
+    }
+)
 
 
 def utc_now() -> str:
@@ -101,13 +112,15 @@ def _checked_artifacts(path: Path) -> list[Path]:
         if item.is_symlink() or not item.is_file() or item.name not in ARTIFACT_NAMES:
             raise ValueError(
                 f"Refusing to archive {path}: unknown or non-file entry {item.name!r}. "
-                "Move it manually or choose a different --out directory.")
+                "Move it manually or choose a different --out directory."
+            )
         artifacts.append(item)
     return artifacts
 
 
-def prepare_output(path_string: str, source_sha256: str, settings_hash: str,
-                   overwrite: bool) -> tuple[Path, Path | None]:
+def prepare_output(
+    path_string: str, source_sha256: str, settings_hash: str, overwrite: bool
+) -> tuple[Path, Path | None]:
     """Refuse unsafe targets; archive only approved generated artifacts."""
     raw_path = Path(path_string).expanduser().absolute()
     if raw_path.is_symlink():
@@ -128,7 +141,8 @@ def prepare_output(path_string: str, source_sha256: str, settings_hash: str,
         if not run_file.is_file():
             raise ValueError(
                 f"Existing legacy output {path} has no run.json; pass --overwrite "
-                "to archive its known artifacts first.")
+                "to archive its known artifacts first."
+            )
         try:
             with run_file.open(encoding="utf-8") as handle:
                 previous = json.load(handle)
@@ -139,7 +153,8 @@ def prepare_output(path_string: str, source_sha256: str, settings_hash: str,
         if old_source != source_sha256 or old_config != settings_hash:
             raise ValueError(
                 f"Output provenance mismatch in {path}: source/config differs. "
-                "Use a new --out, or pass --overwrite to archive old artifacts.")
+                "Use a new --out, or pass --overwrite to archive old artifacts."
+            )
         return path, None
 
     size = sum(item.stat().st_size for item in artifacts)
@@ -167,8 +182,11 @@ def _version(distribution: str) -> str | None:
 def _git_state() -> dict[str, Any]:
     def git(*args: str) -> str | None:
         result = subprocess.run(
-            ["git", *args], cwd=PROJECT_ROOT, text=True,
-            capture_output=True, check=False,
+            ["git", *args],
+            cwd=PROJECT_ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
         )
         return result.stdout.strip() if result.returncode == 0 else None
 
@@ -189,7 +207,7 @@ def _host_info() -> dict[str, Any]:
                     break
     try:
         ram = os.sysconf("SC_PHYS_PAGES") * os.sysconf("SC_PAGE_SIZE")
-    except (OSError, ValueError):
+    except OSError, ValueError:
         ram = None
     return {"cpu_model": cpu, "ram_bytes": ram, "platform": platform.platform()}
 
@@ -212,8 +230,9 @@ def redacted_command(argv: Sequence[str]) -> list[str]:
     return output
 
 
-def manifest_template(argv: Sequence[str], source: dict[str, Any],
-                      settings: dict[str, Any], requested_device: str) -> dict[str, Any]:
+def manifest_template(
+    argv: Sequence[str], source: dict[str, Any], settings: dict[str, Any], requested_device: str
+) -> dict[str, Any]:
     return {
         "schema_version": 1,
         "run_id": uuid.uuid4().hex,
@@ -229,10 +248,12 @@ def manifest_template(argv: Sequence[str], source: dict[str, Any],
         "config_sha256": config_hash(settings),
         "config": settings,
         "models": {
-            "detector": {"requested_device": requested_device, "execution_devices": None,
-                         "files": {}},
-            "pose": {"requested_device": requested_device, "execution_devices": None,
-                     "files": {}},
+            "detector": {
+                "requested_device": requested_device,
+                "execution_devices": None,
+                "files": {},
+            },
+            "pose": {"requested_device": requested_device, "execution_devices": None, "files": {}},
         },
         "warnings": [],
         "host": _host_info(),

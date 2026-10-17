@@ -1,4 +1,5 @@
 """Pinned model files must be present and byte-for-byte verified."""
+
 from __future__ import annotations
 
 import hashlib
@@ -18,15 +19,17 @@ def test_verified_model_rejects_corruption(tmp_path, monkeypatch):
     digest = hashlib.sha256(xml.read_bytes()).hexdigest()
     manifest = model_root / "models.lock.json"
     manifest.write_text(
-        json.dumps({
-            "schema_version": 1,
-            "models": {
-                "detector": {
-                    "directory": "detector",
-                    "files": {"model.xml": digest},
-                }
-            },
-        }),
+        json.dumps(
+            {
+                "schema_version": 1,
+                "models": {
+                    "detector": {
+                        "directory": "detector",
+                        "files": {"model.xml": digest},
+                    }
+                },
+            }
+        ),
         encoding="utf-8",
     )
     monkeypatch.setattr(models, "MODEL_ROOT", model_root)

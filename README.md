@@ -43,7 +43,9 @@ This project targets Python 3.14.4. Install `uv`, then from a fresh clone run:
 ```bash
 uv python install 3.14.4
 uv sync --locked --group dev --extra vlm
-uv run --locked python -m pytest -q
+make test
+make lint
+make typecheck
 uv pip check --python .venv/bin/python
 ```
 
@@ -56,6 +58,15 @@ tools are installed by the `dev` group. Model weights are managed separately.
 See `models/README.md`: the local XML/BIN files are hash-pinned but intentionally
 Git-ignored. Supply local model sources to `python scripts/fetch_models.py` after
 a fresh clone; no unverified download URL is assumed.
+
+`make test` runs the complete suite in one environment; the optional
+`needs_models` integration test reports a skip reason until both pinned model
+assets are copied locally. After copying them, `make test-all` verifies their
+hashes and runs every test. `make setup` performs the Python and dependency
+installation above. CI runs lint, type checking and the model-free suite on
+each push and pull request. The pre-commit hooks need `pre-commit` installed
+separately (`pre-commit run --all-files`); the credential hook is deliberately
+basic and must not be treated as a guarantee that secrets are absent.
 
 ## Run
 
